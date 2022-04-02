@@ -1,0 +1,68 @@
+import pandas as pd
+from datetime import datetime
+from sklearn.model_selection import train_test_split
+from sklearn.tree import export_graphviz
+from sklearn.tree import DecisionTreeClassifier
+import graphviz
+from sklearn.metrics import accuracy_score
+import numpy as np
+
+uri = 'https://gist.githubusercontent.com/guilhermesilveira/4d1d4a16ccbf6ea4e0a64a38a24ec884/raw/afd05cb0c796d18f3f5a6537053ded308ba94bf7/car-prices.csv'
+dados = pd.read_csv(uri)
+dados.head()
+
+# renomeando em pt-br
+a_renomear = {
+    'mileage_per_year': 'milhas_por_ano',
+    'model_year': 'ano_do_modelo',
+    'price': 'preco',
+    'sold': 'vendido'
+}
+dados = dados.rename(columns=a_renomear)
+dados.head()
+
+# trocando os valores str em 0 e 1
+a_trocar = {'no': 0, 'yes': 1}
+dados['vendido'] = dados['vendido'].map(a_trocar)
+dados.head()
+
+# criando a coluna Idade do modelo
+ano_atual = datetime.today().year
+dados['idade_do_modelo'] = ano_atual - dados.ano_do_modelo
+dados.head()
+
+# modificando milhas por km
+dados['km_por_ano'] = dados.milhas_por_ano * 1.60934
+dados.head()
+
+# removendo colunas inutilizaveis
+dados = dados.drop(columns=['milhas_por_ano', 'ano_do_modelo','Unnamed: 0'])
+dados.head()
+
+#treinamento
+x= dados[['preco','idade_do_modelo','km_por_ano']]
+y= dados['vendido']
+
+SEED = 5 #ordem dos numeros aleatorios
+np.random.seed(SEED)
+raw_treino_x, raw_teste_x, treino_y, teste_y = train_test_split(x, y,
+                                                        test_size = 0.25,
+                                                        stratify = y)
+print("Treinaremos com %d elementos e testaremos com %d elementos" % (len(raw_treino_x), len(raw_teste_x)))
+
+modelo = DecisionTreeClassifier(max_depth=2) #profundidade da arvore
+modelo.fit(raw_treino_x, treino_y)
+previsoes = modelo.predict(raw_teste_x)
+
+acuracia = accuracy_score(teste_y, previsoes) * 100
+print("A acurácia foi %.2f%%" % acuracia)
+
+# plotando arvore
+features = x.columns
+dot_data = export_graphviz(modelo, out_file=None,
+                           filled=True, #preencher cor
+                           rounded= True, #arredondar bordas
+                           feature_names = features, #mantem o nome das variaveis das colunas na arvore
+                          class_names = ['não','sim'])
+grafico = graphviz.Source(dot_data)
+grafico
